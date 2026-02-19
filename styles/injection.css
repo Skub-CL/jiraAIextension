@@ -1,0 +1,395 @@
+/*
+ * Jira LLM Assistant – Injection Styles
+ *
+ * Design goals:
+ *   - Mimic native Jira Data Center look & feel
+ *   - Clearly identifiable as AI content (violet left border, 🤖 icon)
+ *   - Accessible and non-intrusive
+ */
+
+/* ── Trigger button (🤖 icon next to section headings) ─────────────────────── */
+.jira-llm-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid #6554C0;
+  border-radius: 4px;
+  color: #6554C0;
+  font-size: 14px;
+  cursor: pointer;
+  vertical-align: middle;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.jira-llm-trigger-btn:hover {
+  opacity: 1;
+  background: #EAE6FF;
+}
+
+/* ── Block container ────────────────────────────────────────────────────────── */
+.jira-llm-block {
+  margin: 12px 0;
+  border: 1px solid #DFE1E6;
+  border-left: 4px solid #6554C0;
+  border-radius: 4px;
+  background: #F4F5F7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Atlassian Sans", sans-serif;
+  font-size: 14px;
+  color: #172B4D;
+  box-shadow: 0 1px 3px rgba(9, 30, 66, 0.08);
+}
+
+/* ── Block header ────────────────────────────────────────────────────────────── */
+.jira-llm-block-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #DFE1E6;
+  background: #EAE6FF;
+  border-radius: 3px 3px 0 0;
+  gap: 8px;
+}
+
+.jira-llm-block-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.jira-llm-block-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 13px;
+  color: #403294;
+}
+
+.jira-llm-block-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Icon buttons (copy, reload, toggle) ───────────────────────────────────── */
+.jira-llm-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #5E4DB2;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.jira-llm-btn-icon:hover {
+  background: #C0B6F2;
+  border-color: #8777D9;
+}
+
+/* ── Block content area ─────────────────────────────────────────────────────── */
+.jira-llm-block-content {
+  padding: 12px 16px;
+  line-height: 1.6;
+}
+
+.jira-llm-block-content p {
+  margin: 0 0 8px;
+}
+
+.jira-llm-block-content p:last-child {
+  margin-bottom: 0;
+}
+
+.jira-llm-list-item {
+  padding: 2px 0 2px 16px;
+  position: relative;
+}
+
+.jira-llm-heading {
+  font-weight: 600;
+  margin: 12px 0 4px;
+  color: #403294;
+}
+
+.jira-llm-h1 { font-size: 15px; }
+.jira-llm-h2 { font-size: 14px; }
+.jira-llm-h3 { font-size: 13px; }
+
+/* ── Skeleton loader ────────────────────────────────────────────────────────── */
+.jira-llm-skeleton {
+  padding: 4px 0;
+}
+
+.jira-llm-skeleton-line {
+  height: 14px;
+  background: linear-gradient(90deg, #DFE1E6 25%, #F4F5F7 50%, #DFE1E6 75%);
+  background-size: 200% 100%;
+  animation: jlla-shimmer 1.4s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.jira-llm-skeleton-line.jira-llm-skeleton-short {
+  width: 60%;
+}
+
+@keyframes jlla-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Error banner ───────────────────────────────────────────────────────────── */
+.jira-llm-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #FFEBE6;
+  border: 1px solid #FF7452;
+  border-radius: 4px;
+  color: #AE2A19;
+  font-size: 13px;
+}
+
+.jira-llm-error-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+/* ── Quality badges (acceptance criteria) ────────────────────────────────────── */
+.jira-llm-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.jira-llm-badge-good { background: #E3FCEF; color: #006644; }
+.jira-llm-badge-ok   { background: #FFFAE6; color: #FF8B00; }
+.jira-llm-badge-bad  { background: #FFEBE6; color: #AE2A19; }
+
+/* ── Subtasks ────────────────────────────────────────────────────────────────── */
+.jira-llm-subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jira-llm-subtask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #EBECF0;
+}
+
+.jira-llm-subtask-row:last-child {
+  border-bottom: none;
+}
+
+.jira-llm-subtask-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: default;
+}
+
+.jira-llm-subtask-summary {
+  font-weight: 500;
+  color: #172B4D;
+}
+
+.jira-llm-subtask-desc {
+  font-size: 12px;
+  color: #5E6C84;
+}
+
+.jira-llm-subtask-status {
+  font-size: 12px;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.jira-llm-status-ok  { color: #006644; }
+.jira-llm-status-err { color: #AE2A19; }
+
+.jira-llm-subtask-footer {
+  margin-top: 12px;
+  text-align: right;
+}
+
+.jira-llm-placeholder {
+  padding: 12px 16px;
+  color: #7A869A;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────── */
+.jira-llm-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+  text-decoration: none;
+}
+
+.jira-llm-btn-primary {
+  background: #6554C0;
+  color: #fff;
+  border-color: #6554C0;
+}
+.jira-llm-btn-primary:hover { background: #5243AA; border-color: #5243AA; }
+
+.jira-llm-btn-secondary {
+  background: #F4F5F7;
+  color: #172B4D;
+  border-color: #C1C7D0;
+}
+.jira-llm-btn-secondary:hover { background: #EBECF0; }
+
+.jira-llm-btn-small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.jira-llm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Comment sections (collapsible) ─────────────────────────────────────────── */
+.jira-llm-comment-section {
+  margin-bottom: 10px;
+}
+
+.jira-llm-section-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  background: #EBECF0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #172B4D;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jira-llm-section-toggle:hover { background: #DFE1E6; }
+
+.jira-llm-section-body {
+  padding: 8px 8px 0;
+}
+
+/* ── Modal dialog (subtasks prompt) ─────────────────────────────────────────── */
+.jira-llm-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 30, 66, 0.54);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jira-llm-dialog {
+  background: #fff;
+  border-radius: 6px;
+  width: min(600px, 90vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(9, 30, 66, 0.25);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Atlassian Sans", sans-serif;
+}
+
+.jira-llm-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #DFE1E6;
+  font-size: 16px;
+  font-weight: 600;
+  color: #172B4D;
+}
+
+.jira-llm-dialog-body {
+  padding: 16px 20px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jira-llm-dialog-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344563;
+}
+
+.jira-llm-dialog-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 2px solid #DFE1E6;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  resize: vertical;
+  color: #172B4D;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.jira-llm-dialog-textarea:focus {
+  outline: none;
+  border-color: #6554C0;
+  box-shadow: 0 0 0 2px #EAE6FF;
+}
+
+.jira-llm-dialog-hint {
+  font-size: 12px;
+  color: #7A869A;
+  margin: 0;
+}
+
+.jira-llm-dialog-hint code {
+  background: #F4F5F7;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.jira-llm-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #DFE1E6;
+  gap: 8px;
+}
+
+.jira-llm-dialog-footer > div {
+  display: flex;
+  gap: 8px;
+}

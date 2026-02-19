@@ -1,0 +1,15 @@
+# Chrome Extension build artifacts
+*.crx
+*.pem
+*.zip
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/

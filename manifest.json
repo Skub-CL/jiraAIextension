@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Jira LLM Assistant",
+  "version": "1.0.0",
+  "description": "KI-gestützte Analyse und Unterstützung für Jira Data Center Issues",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "identity"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/blocks/block-base.js",
+        "content/blocks/block-summary.js",
+        "content/blocks/block-acceptance.js",
+        "content/blocks/block-subtasks.js",
+        "content/blocks/block-comments.js",
+        "content/injector.js",
+        "content/dom-observer.js",
+        "content/content-script.js"
+      ],
+      "css": ["styles/injection.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["styles/injection.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

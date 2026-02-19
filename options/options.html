@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jira LLM Assistant – Einstellungen</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 14px;
+      color: #172B4D;
+      background: #F4F5F7;
+    }
+
+    .layout {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 20px 60px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 22px;
+      color: #172B4D;
+    }
+    .page-header .logo { font-size: 28px; }
+
+    /* ── Sections ── */
+    .section {
+      background: #fff;
+      border: 1px solid #DFE1E6;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 14px 20px;
+      background: #F4F5F7;
+      border-bottom: 1px solid #DFE1E6;
+      font-weight: 600;
+      font-size: 14px;
+      color: #172B4D;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── Form fields ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #5E6C84;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .field input[type="text"],
+    .field input[type="password"],
+    .field input[type="url"],
+    .field select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 2px solid #DFE1E6;
+      border-radius: 4px;
+      font-size: 14px;
+      color: #172B4D;
+      background: #fff;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: #6554C0;
+      box-shadow: 0 0 0 2px #EAE6FF;
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: #7A869A;
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .field-hint code {
+      background: #F4F5F7;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* ── LLM Routing table ── */
+    .routing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .routing-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #F4F5F7;
+      border: 1px solid #DFE1E6;
+      font-size: 12px;
+      font-weight: 600;
+      color: #5E6C84;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .routing-table td {
+      padding: 8px 12px;
+      border: 1px solid #DFE1E6;
+    }
+
+    .routing-table tr:nth-child(even) td { background: #FAFBFC; }
+
+    .routing-table select {
+      width: 100%;
+      padding: 5px 8px;
+      border: 1px solid #C1C7D0;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #172B4D;
+      background: #fff;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #6554C0; color: #fff; border-color: #6554C0; }
+    .btn-primary:hover { background: #5243AA; }
+    .btn-secondary { background: #F4F5F7; color: #172B4D; border-color: #C1C7D0; }
+    .btn-secondary:hover { background: #EBECF0; }
+    .btn-danger { background: #FFEBE6; color: #AE2A19; border-color: #FF7452; }
+    .btn-danger:hover { background: #FFD2CC; }
+    .btn-small { padding: 4px 10px; font-size: 13px; }
+
+    /* ── Status / toast ── */
+    #status-bar {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    #status-bar.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #status-bar.success { background: #E3FCEF; color: #006644; border: 1px solid #57D9A3; }
+    #status-bar.error   { background: #FFEBE6; color: #AE2A19; border: 1px solid #FF7452; }
+
+    /* ── Sticky save bar ── */
+    .save-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border-top: 1px solid #DFE1E6;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      z-index: 50;
+    }
+
+    /* ── Backend tabs ── */
+    .tabs { display: flex; border-bottom: 2px solid #DFE1E6; margin-bottom: 16px; }
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #5E6C84;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab.active { color: #6554C0; border-bottom-color: #6554C0; }
+    .tab-panel { display: none; flex-direction: column; gap: 16px; }
+    .tab-panel.active { display: flex; }
+
+    .test-result {
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .test-result.ok  { color: #006644; }
+    .test-result.err { color: #AE2A19; }
+
+    .divider { border: none; border-top: 1px solid #DFE1E6; margin: 4px 0; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="page-header">
+      <span class="logo">🤖</span>
+      <div>
+        <h1>Jira LLM Assistant</h1>
+        <p style="margin:0;font-size:13px;color:#7A869A;">Einstellungen</p>
+      </div>
+    </div>
+
+    <!-- ── Jira-Konfiguration ──────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">🔧 Jira-Konfiguration</div>
+      <div class="section-body">
+        <div class="field">
+          <label for="jiraBaseUrl">Jira-Basis-URL</label>
+          <input type="url" id="jiraBaseUrl" placeholder="https://jira.example.com">
+          <p class="field-hint">Basis-URL der Jira Data Center Instanz (ohne abschließenden Schrägstrich).</p>
+        </div>
+        <div class="field">
+          <label for="jiraApiToken">Personal Access Token (PAT)</label>
+          <input type="password" id="jiraApiToken" placeholder="••••••••••••••••••••">
+          <p class="field-hint">
+            In Jira: <em>Profil → Personal Access Tokens → Token erstellen</em>.
+            Wird verschlüsselt in <code>chrome.storage.sync</code> gespeichert.
+          </p>
+        </div>
+        <div class="field">
+          <label for="acceptanceCriteriaFieldId">Akzeptanzkriterien Feld-ID</label>
+          <input type="text" id="acceptanceCriteriaFieldId" placeholder="customfield_10200">
+          <p class="field-hint">
+            Interne Jira-ID des Custom Fields für Akzeptanzkriterien (z. B. <code>customfield_10200</code>).
+            Zu finden unter <em>Verwaltung → Felder → Benutzerdefinierte Felder</em>.
+            Leer lassen, wenn nicht genutzt.
+          </p>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-small" id="test-jira">Verbindung testen</button>
+          <span class="test-result" id="test-jira-result"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LLM-Backends ────────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">🧠 LLM-Backends</div>
+      <div class="section-body">
+        <div class="tabs">
+          <div class="tab active" data-tab="ollama">Ollama</div>
+          <div class="tab" data-tab="copilot">Microsoft Copilot / Azure OpenAI</div>
+          <div class="tab" data-tab="openai">OpenAI-kompatibel</div>
+        </div>
+
+        <!-- Ollama -->
+        <div class="tab-panel active" id="tab-ollama">
+          <div class="field">
+            <label for="ollamaBaseUrl">Basis-URL</label>
+            <input type="url" id="ollamaBaseUrl" placeholder="http://localhost:11434">
+          </div>
+          <div class="field">
+            <label for="ollamaModel">Modell</label>
+            <input type="text" id="ollamaModel" placeholder="llama3">
+            <p class="field-hint">Verfügbare Modelle: <code>ollama list</code> in der Kommandozeile.</p>
+          </div>
+          <hr class="divider">
+          <p style="font-size:13px;font-weight:600;margin:0;">Optional: Basic Auth (falls Ollama geschützt ist)</p>
+          <div class="field-row">
+            <div class="field">
+              <label for="ollamaUsername">Benutzername</label>
+              <input type="text" id="ollamaUsername" placeholder="(leer = keine Auth)">
+            </div>
+            <div class="field">
+              <label for="ollamaPassword">Passwort</label>
+              <input type="password" id="ollamaPassword">
+            </div>
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-small" id="test-ollama">Verbindung testen</button>
+            <span class="test-result" id="test-ollama-result"></span>
+          </div>
+        </div>
+
+        <!-- Copilot -->
+        <div class="tab-panel" id="tab-copilot">
+          <div class="field">
+            <label for="copilotEndpoint">Azure OpenAI Endpoint</label>
+            <input type="url" id="copilotEndpoint"
+              placeholder="https://TENANT.openai.azure.com/openai/deployments/gpt-4o/chat/completions">
+            <p class="field-hint">Vollständiger Deployment-URL aus dem Azure-Portal.</p>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="copilotApiVersion">API-Version</label>
+              <input type="text" id="copilotApiVersion" placeholder="2024-02-01">
+            </div>
+            <div class="field">
+              <label for="copilotModel">Modell / Deployment-Name</label>
+              <input type="text" id="copilotModel" placeholder="gpt-4o">
+            </div>
+          </div>
+          <hr class="divider">
+          <p style="font-size:13px;font-weight:600;margin:0;">Authentifizierung (eine Option wählen)</p>
+          <div class="field">
+            <label for="copilotApiKey">API-Key (einfach)</label>
+            <input type="password" id="copilotApiKey" placeholder="Azure OpenAI API-Key">
+            <p class="field-hint">Aus dem Azure-Portal unter <em>Keys and Endpoint</em>. Wenn gesetzt, wird OAuth2 übersprungen.</p>
+          </div>
+          <hr class="divider">
+          <p style="font-size:13px;color:#5E6C84;margin:0;">
+            <strong>OAuth2 / Entra ID (SSO):</strong> Nutzt den angemeldeten M365-Account des Nutzers.
+            Erfordert eine registrierte Azure AD App.
+          </p>
+          <div class="field-row">
+            <div class="field">
+              <label for="copilotTenantId">Tenant-ID</label>
+              <input type="text" id="copilotTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </div>
+            <div class="field">
+              <label for="copilotClientId">Client-ID (App-ID)</label>
+              <input type="text" id="copilotClientId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </div>
+          </div>
+          <p class="field-hint">
+            Die Chrome-Extension muss in Azure AD registriert sein. Redirect-URI:
+            <code id="redirect-uri">Wird geladen…</code>
+          </p>
+          <div>
+            <button class="btn btn-secondary btn-small" id="test-copilot">Verbindung testen</button>
+            <span class="test-result" id="test-copilot-result"></span>
+          </div>
+        </div>
+
+        <!-- OpenAI-compatible -->
+        <div class="tab-panel" id="tab-openai">
+          <div class="field">
+            <label for="openaiBaseUrl">Basis-URL</label>
+            <input type="url" id="openaiBaseUrl" placeholder="http://localhost:1234/v1">
+            <p class="field-hint">Kompatibel mit LM Studio, vLLM, LocalAI, Groq, etc.</p>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="openaiModel">Modell</label>
+              <input type="text" id="openaiModel" placeholder="gpt-4">
+            </div>
+            <div class="field">
+              <label for="openaiApiKey">API-Key</label>
+              <input type="password" id="openaiApiKey" placeholder="sk-… (leer = kein Key)">
+            </div>
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-small" id="test-openai">Verbindung testen</button>
+            <span class="test-result" id="test-openai-result"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LLM-Zuweisung ───────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">🔀 LLM-Zuweisung pro Feature</div>
+      <div class="section-body">
+        <p class="field-hint" style="margin:0;">
+          Wähle, welches Backend für jede KI-Funktion genutzt wird.
+          Diese Zuweisung kann per Registry-Policy (<code>ExtensionSettings</code>) für Endnutzer gesperrt werden.
+        </p>
+        <table class="routing-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Backend</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>🤖 Zusammenfassung</td>
+              <td>
+                <select id="routing-summary">
+                  <option value="ollama">Ollama</option>
+                  <option value="copilot">Microsoft Copilot / Azure OpenAI</option>
+                  <option value="openai">OpenAI-kompatibel</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td>🤖 Akzeptanzkriterien-Bewertung</td>
+              <td>
+                <select id="routing-acceptance">
+                  <option value="ollama">Ollama</option>
+                  <option value="copilot">Microsoft Copilot / Azure OpenAI</option>
+                  <option value="openai">OpenAI-kompatibel</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td>🤖 Unteraufgaben-Vorschläge</td>
+              <td>
+                <select id="routing-subtasks">
+                  <option value="ollama">Ollama</option>
+                  <option value="copilot">Microsoft Copilot / Azure OpenAI</option>
+                  <option value="openai">OpenAI-kompatibel</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td>🤖 Kommentar-Analyse</td>
+              <td>
+                <select id="routing-comments">
+                  <option value="ollama">Ollama</option>
+                  <option value="copilot">Microsoft Copilot / Azure OpenAI</option>
+                  <option value="openai">OpenAI-kompatibel</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Allgemein ───────────────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">⚙️ Allgemeine Einstellungen</div>
+      <div class="section-body">
+        <div class="field">
+          <label for="language">Sprache der KI-Ausgaben</label>
+          <select id="language">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div>
+          <button class="btn btn-danger btn-small" id="reset-subtask-prompt">
+            🔄 Unteraufgaben-Prompt zurücksetzen
+          </button>
+          <p class="field-hint" style="margin-top:6px;">
+            Setzt den gespeicherten benutzerdefinierten Unteraufgaben-Prompt auf die Standard-Vorlage zurück.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sticky save bar ── -->
+  <div class="save-bar">
+    <button class="btn btn-secondary" id="reset-all">Zurücksetzen</button>
+    <button class="btn btn-primary" id="save">💾 Einstellungen speichern</button>
+  </div>
+
+  <div id="status-bar"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
