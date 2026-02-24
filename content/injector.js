@@ -149,7 +149,6 @@ window.JiraLLM.Injector = class Injector {
     const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
     this._blocks.push(block);
     block.attach(anchor, 'afterend');
-    block._openDialog();
   }
 
   _activateComments() {

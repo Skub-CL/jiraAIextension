@@ -2,57 +2,30 @@
  * BlockSubtasks – suggests subtasks via LLM, lets user create them in Jira.
  *
  * Flow:
- *   1. User clicks 🤖 icon → prompt dialog opens (editable template)
- *   2. User clicks "Starten" → skeleton shown, LLM call sent
+ *   1. User clicks "📋 Unteraufgaben vorschlagen" in the sidebar panel
+ *   2. Skeleton shown, LLM call sent immediately (prompt from Options page)
  *   3. Results rendered as checkboxes with individual "Anlegen" buttons
- *   4. "Alle anlegen" creates all at once
+ *   4. "Alle anlegen" creates all checked items at once
+ *
+ * The prompt template is configured in the extension's Options page and
+ * stored in chrome.storage.sync (promptSubtasksCustom). No per-issue
+ * dialog is shown.
  */
 window.JiraLLM = window.JiraLLM || {};
 
 window.JiraLLM.BlockSubtasks = class BlockSubtasks extends window.JiraLLM.BlockBase {
   constructor(issueKey) {
     super(`jlla-subtasks-${issueKey}`, 'KI-Vorschläge für Unteraufgaben', issueKey);
-    this._subtasks = []; // parsed LLM result
-    this._defaultPrompt = null; // loaded from settings
-    this._customPrompt = null;  // user-edited version
+    this._subtasks = [];
   }
 
-  // Override attach: show prompt dialog first, don't call analyze() immediately
-  attach(anchorEl, position = 'afterend') {
-    const existing = document.getElementById(this.id);
-    if (existing) existing.remove();
-
-    const wrapper = document.createElement('div');
-    wrapper.id = this.id;
-    wrapper.className = 'jira-llm-block';
-    wrapper.innerHTML = this._headerHTML() +
-      `<div class="jira-llm-placeholder">
-        Klicke auf ↺, um neue Vorschläge zu laden.
-       </div>
-      </div>`;
-
-    anchorEl.insertAdjacentElement(position, wrapper);
-    this.container = wrapper;
-    this.contentEl = wrapper.querySelector('.jira-llm-block-content');
-    this._bindEvents();
-    this._restoreCollapseState();
-
-    // Override reload button to open dialog instead of re-running directly
-    this.container.querySelector('.jira-llm-reload-btn')
-      ?.removeEventListener('click', this._reloadHandler);
-    this.container.querySelector('.jira-llm-reload-btn')
-      ?.addEventListener('click', () => this._openDialog());
-  }
-
-  // analyze() is called after dialog confirms
-  async analyze(customPrompt) {
+  async analyze() {
     this.showSkeleton();
     try {
       const response = await this._send({
         action: 'analyzeIssue',
         feature: 'subtasks',
-        issueKey: this.issueKey,
-        customPrompt: customPrompt || null
+        issueKey: this.issueKey
       });
       this._subtasks = this._parseSubtasks(response.result);
       this.showContent(this._renderSubtasks());
@@ -62,87 +35,15 @@ window.JiraLLM.BlockSubtasks = class BlockSubtasks extends window.JiraLLM.BlockB
     }
   }
 
-  // ── Prompt dialog ────────────────────────────────────────────────────────────
-  async _openDialog() {
-    // Fetch default prompt from service worker settings
-    if (!this._defaultPrompt) {
-      try {
-        const res = await this._send({ action: 'getSettings' });
-        this._defaultPrompt = res.settings?.promptSubtasksCustom || '';
-      } catch (_) {
-        this._defaultPrompt = '';
-      }
-    }
-
-    const dialogId = `jlla-dialog-${this.issueKey}`;
-    const existing = document.getElementById(dialogId);
-    if (existing) existing.remove();
-
-    const dialog = document.createElement('div');
-    dialog.id = dialogId;
-    dialog.className = 'jira-llm-dialog-overlay';
-    dialog.innerHTML = `
-      <div class="jira-llm-dialog">
-        <div class="jira-llm-dialog-header">
-          <span>🤖 Unteraufgaben generieren</span>
-          <button class="jira-llm-btn-icon jira-llm-dialog-close" title="Schließen">✕</button>
-        </div>
-        <div class="jira-llm-dialog-body">
-          <label class="jira-llm-dialog-label">Prompt anpassen:</label>
-          <textarea class="jira-llm-dialog-textarea" rows="10">${this._esc(this._defaultPrompt)}</textarea>
-          <p class="jira-llm-dialog-hint">
-            Platzhalter: <code>{issueKey}</code>, <code>{summary}</code>, <code>{issuetype}</code>,
-            <code>{description}</code>, <code>{acceptanceCriteria}</code>, <code>{existingSubtasks}</code>
-          </p>
-        </div>
-        <div class="jira-llm-dialog-footer">
-          <button class="jira-llm-btn jira-llm-btn-secondary jira-llm-dialog-reset">🔄 Vorlage zurücksetzen</button>
-          <div>
-            <button class="jira-llm-btn jira-llm-btn-secondary jira-llm-dialog-cancel">Abbrechen</button>
-            <button class="jira-llm-btn jira-llm-btn-primary jira-llm-dialog-start">Starten</button>
-          </div>
-        </div>
-      </div>`;
-
-    document.body.appendChild(dialog);
-
-    const textarea = dialog.querySelector('.jira-llm-dialog-textarea');
-    const close = () => dialog.remove();
-
-    dialog.querySelector('.jira-llm-dialog-close').addEventListener('click', close);
-    dialog.querySelector('.jira-llm-dialog-cancel').addEventListener('click', close);
-    dialog.addEventListener('click', (e) => { if (e.target === dialog) close(); });
-
-    dialog.querySelector('.jira-llm-dialog-reset').addEventListener('click', async () => {
-      // Clear saved custom prompt, restore built-in default
-      await chrome.storage.sync.remove('promptSubtasksCustom');
-      this._defaultPrompt = '';
-      textarea.value = '';
-    });
-
-    dialog.querySelector('.jira-llm-dialog-start').addEventListener('click', async () => {
-      const prompt = textarea.value.trim();
-      // Save custom prompt for next time
-      if (prompt) {
-        await chrome.storage.sync.set({ promptSubtasksCustom: prompt });
-        this._defaultPrompt = prompt;
-      }
-      close();
-      this.analyze(prompt || null);
-    });
-  }
-
   // ── Parse LLM JSON output ────────────────────────────────────────────────────
   _parseSubtasks(raw) {
     try {
-      // The LLM may wrap the JSON in a code block
       const jsonStr = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
       const arr = JSON.parse(jsonStr);
       if (Array.isArray(arr)) return arr;
     } catch (_) {
       // Fallback: treat as raw text
     }
-    // If JSON parsing failed, return a single item with the raw text
     return [{ summary: 'LLM-Antwort (kein JSON)', description: raw }];
   }
 
@@ -177,8 +78,7 @@ window.JiraLLM.BlockSubtasks = class BlockSubtasks extends window.JiraLLM.BlockB
   _bindSubtaskActions() {
     this.contentEl.querySelectorAll('.jira-llm-subtask-create-one').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        await this._createOne(idx);
+        await this._createOne(parseInt(btn.dataset.index, 10));
       });
     });
 
@@ -186,8 +86,7 @@ window.JiraLLM.BlockSubtasks = class BlockSubtasks extends window.JiraLLM.BlockB
       ?.addEventListener('click', async () => {
         const rows = this.contentEl.querySelectorAll('.jira-llm-subtask-row');
         for (const row of rows) {
-          const cb = row.querySelector('.jira-llm-subtask-cb');
-          if (cb?.checked) {
+          if (row.querySelector('.jira-llm-subtask-cb')?.checked) {
             await this._createOne(parseInt(row.dataset.index, 10));
           }
         }
