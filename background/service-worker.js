@@ -84,8 +84,14 @@ async function analyzeIssue({ feature, issueKey, customPrompt }) {
     throw new Error('Jira Personal Access Token (PAT) nicht konfiguriert.');
   }
 
+  // Normalise fieldId: user may enter "10112" or "customfield_10112"
+  const rawFieldId = settings.acceptanceCriteriaFieldId || '';
+  const fieldId = rawFieldId && /^\d+$/.test(rawFieldId.trim())
+    ? `customfield_${rawFieldId.trim()}`
+    : rawFieldId.trim();
+
   const jira = new JiraAPI(settings.jiraBaseUrl, settings.jiraApiToken);
-  const issue = await jira.getIssue(issueKey, settings.acceptanceCriteriaFieldId);
+  const issue = await jira.getIssue(issueKey, fieldId);
   const fields = issue.fields;
 
   // Build template variables from issue data
@@ -97,8 +103,8 @@ async function analyzeIssue({ feature, issueKey, customPrompt }) {
     priority: fields.priority?.name || '—',
     assignee: fields.assignee?.displayName || '(nicht zugewiesen)',
     description: extractText(fields.description) || '(keine Beschreibung)',
-    acceptanceCriteria: settings.acceptanceCriteriaFieldId
-      ? extractText(fields[settings.acceptanceCriteriaFieldId]) || '(keine Akzeptanzkriterien)'
+    acceptanceCriteria: fieldId
+      ? extractText(fields[fieldId]) || '(keine Akzeptanzkriterien)'
       : '(kein Feld konfiguriert)',
     existingSubtasks: formatSubtasks(fields.subtasks),
     comments: formatComments(fields.comment?.comments),

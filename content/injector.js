@@ -65,18 +65,21 @@ window.JiraLLM.Injector = class Injector {
   }
 
   _injectAcceptance() {
-    const fieldId = this.settings.acceptanceCriteriaFieldId;
-    if (!fieldId) return;
+    const rawId = this.settings.acceptanceCriteriaFieldId;
+    if (!rawId) return;
 
-    // Jira DC renders custom fields in many different ways depending on version/config
+    // Normalise: user may enter "10112" or "customfield_10112" – both must work
+    const fieldId = /^\d+$/.test(rawId.trim()) ? `customfield_${rawId.trim()}` : rawId.trim();
+
+    // Use [id="..."] attribute selectors instead of #id notation to avoid
+    // invalid CSS selectors when the id starts with a digit.
     const anchor = document.querySelector([
       `[data-field-id="${fieldId}"]`,
-      `#${fieldId}-val`,
-      `#${fieldId}`,
+      `[id="${fieldId}-val"]`,
+      `[id="${fieldId}"]`,
       `[id="${fieldId}-field"]`,
-      `[data-field-id="${fieldId}"] .value`,
       `td[data-field-id="${fieldId}"]`,
-      `.customfield_${fieldId}`
+      `[class~="${fieldId}"]`
     ].join(', ')) || this._findByLabelText(['akzeptanzkriterien', 'acceptance criteria', 'abnahmekriterien']);
 
     if (!anchor || document.getElementById('jlla-trigger-acceptance')
