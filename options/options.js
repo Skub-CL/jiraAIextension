@@ -8,8 +8,34 @@ const STORAGE_KEYS = [
   'copilotApiKey', 'copilotClientId', 'copilotTenantId',
   'openaiBaseUrl', 'openaiModel', 'openaiApiKey',
   'language',
-  'llmRouting'
+  'llmRouting',
+  'promptSubtasksCustom'
 ];
+
+// Default prompt – mirrors prompts/prompts.js (which is ES-module only and
+// cannot be imported here). Keep in sync if the template changes.
+const DEFAULT_SUBTASKS_PROMPT =
+`Du bist ein erfahrener Software-Entwickler und Scrum-Praktiker.
+Analysiere den folgenden Jira-Vorgang und schlage konkrete Unteraufgaben vor.
+
+Vorgang: {issueKey} – {summary}
+Typ: {issuetype}
+Beschreibung: {description}
+Akzeptanzkriterien: {acceptanceCriteria}
+Bereits vorhandene Unteraufgaben: {existingSubtasks}
+
+Erstelle 3–7 konkrete, umsetzbare Unteraufgaben.
+Beachte: Schlage keine Aufgaben vor, die bereits als Unteraufgabe existieren.
+
+Antworte ausschließlich als JSON-Array:
+[
+  {
+    "summary": "Kurzer Titel der Unteraufgabe",
+    "description": "Optionale kurze Beschreibung (max. 2 Sätze)"
+  }
+]
+
+Keine zusätzlichen Erklärungen außerhalb des JSON.`;
 
 const DEFAULTS = {
   ollamaBaseUrl: 'http://localhost:11434',
@@ -64,6 +90,12 @@ async function loadSettings() {
     const sel = document.getElementById(`routing-${feature}`);
     if (sel) sel.value = routing[feature] || 'ollama';
   });
+
+  // Subtasks prompt – show custom value or fall back to the built-in default
+  const promptEl = document.getElementById('promptSubtasksCustom');
+  if (promptEl) {
+    promptEl.value = data.promptSubtasksCustom || DEFAULT_SUBTASKS_PROMPT;
+  }
 }
 
 async function saveSettings() {
@@ -78,6 +110,13 @@ async function saveSettings() {
     const sel = document.getElementById(`routing-${feature}`);
     if (sel) data.llmRouting[feature] = sel.value;
   });
+
+  // Subtasks prompt: save only if it differs from the default (empty = use built-in)
+  const promptEl = document.getElementById('promptSubtasksCustom');
+  if (promptEl) {
+    const val = promptEl.value.trim();
+    data.promptSubtasksCustom = (val === DEFAULT_SUBTASKS_PROMPT.trim()) ? '' : val;
+  }
 
   await chrome.storage.sync.set(data);
   showStatus('✅ Einstellungen gespeichert.', 'success');
@@ -95,7 +134,9 @@ function bindEvents() {
 
   document.getElementById('reset-subtask-prompt').addEventListener('click', async () => {
     await chrome.storage.sync.remove('promptSubtasksCustom');
-    showStatus('Unteraufgaben-Prompt zurückgesetzt.', 'success');
+    const promptEl = document.getElementById('promptSubtasksCustom');
+    if (promptEl) promptEl.value = DEFAULT_SUBTASKS_PROMPT;
+    showStatus('Unteraufgaben-Prompt auf Standard zurückgesetzt.', 'success');
   });
 
   // Backend tabs

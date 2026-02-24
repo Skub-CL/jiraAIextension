@@ -447,6 +447,38 @@
       </div>
     </div>
 
+    <!-- ── Unteraufgaben-Prompt ────────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">📋 Unteraufgaben-Prompt</div>
+      <div class="section-body">
+        <p class="field-hint" style="margin:0 0 4px;">
+          Dieser Prompt wird für die Generierung von Unteraufgaben verwendet. Beim Klick auf
+          „📋 Unteraufgaben vorschlagen" in Jira wird er als Vorlage vorausgefüllt und kann
+          dort noch einmal angepasst werden.
+        </p>
+        <p class="field-hint" style="margin:0 0 12px;">
+          Verfügbare Platzhalter:
+          <code>{issueKey}</code> <code>{summary}</code> <code>{issuetype}</code>
+          <code>{description}</code> <code>{acceptanceCriteria}</code> <code>{existingSubtasks}</code>
+        </p>
+        <div class="field">
+          <label for="promptSubtasksCustom">Prompt-Vorlage</label>
+          <textarea id="promptSubtasksCustom" rows="18"
+            style="width:100%;padding:8px 10px;border:2px solid #DFE1E6;border-radius:4px;
+                   font-size:13px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+                   resize:vertical;color:#172B4D;line-height:1.5;box-sizing:border-box;"
+            onfocus="this.style.borderColor='#6554C0';this.style.boxShadow='0 0 0 2px #EAE6FF'"
+            onblur="this.style.borderColor='#DFE1E6';this.style.boxShadow='none'"
+          ></textarea>
+        </div>
+        <div>
+          <button class="btn btn-secondary btn-small" id="reset-subtask-prompt">
+            🔄 Standard-Vorlage wiederherstellen
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Allgemein ───────────────────────────────────────────────────────── -->
     <div class="section">
       <div class="section-header">⚙️ Allgemeine Einstellungen</div>
@@ -457,14 +489,6 @@
             <option value="de">Deutsch</option>
             <option value="en">English</option>
           </select>
-        </div>
-        <div>
-          <button class="btn btn-danger btn-small" id="reset-subtask-prompt">
-            🔄 Unteraufgaben-Prompt zurücksetzen
-          </button>
-          <p class="field-hint" style="margin-top:6px;">
-            Setzt den gespeicherten benutzerdefinierten Unteraufgaben-Prompt auf die Standard-Vorlage zurück.
-          </p>
         </div>
       </div>
     </div>
