@@ -67,10 +67,26 @@ async function handleMessage(message) {
   }
 }
 
+// ── Settings cache ────────────────────────────────────────────────────────────
+// Avoids repeated storage reads for back-to-back feature calls on the same issue.
+let _settingsCache = null;
+let _settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 5000; // ms
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'sync') _settingsCache = null; // invalidate on any change
+});
+
 // ── Get settings ──────────────────────────────────────────────────────────────
 async function getSettings() {
+  const now = Date.now();
+  if (_settingsCache && now - _settingsCacheTime < SETTINGS_CACHE_TTL) {
+    return _settingsCache;
+  }
   const stored = await chrome.storage.sync.get(Object.keys(DEFAULTS));
-  return { ...DEFAULTS, ...stored };
+  _settingsCache = { ...DEFAULTS, ...stored };
+  _settingsCacheTime = now;
+  return _settingsCache;
 }
 
 // ── Analyze issue ─────────────────────────────────────────────────────────────

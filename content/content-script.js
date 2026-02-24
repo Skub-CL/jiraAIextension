@@ -14,6 +14,7 @@
 
   let currentInjector = null;
   let settings = null;
+  let persistInterval = null;
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@
 
   function activate(issueKey) {
     if (currentInjector) currentInjector.cleanup();
+    // Clear any running interval from a previous activation to prevent duplicates
+    if (persistInterval) { clearInterval(persistInterval); persistInterval = null; }
+
     currentInjector = new Injector(issueKey, settings);
 
     // Quick retries for initial slow Jira renders (0s, 0.8s, 1.6s, 2.5s, 4s)
@@ -61,9 +65,10 @@
 
     // Persistent re-injection every 3s: waits for Jira's right sidebar to finish
     // rendering (the "Agil" module is often injected by Jira Software asynchronously).
-    const persistInterval = setInterval(() => {
+    persistInterval = setInterval(() => {
       if (!currentInjector || extractIssueKey(location.href) !== issueKey) {
         clearInterval(persistInterval);
+        persistInterval = null;
         return;
       }
       currentInjector.inject(); // idempotent – panel already present → no-op

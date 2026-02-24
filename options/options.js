@@ -98,6 +98,23 @@ async function loadSettings() {
   }
 }
 
+function validateSettings(data) {
+  const errors = [];
+  const urlFields = [
+    [data.jiraBaseUrl,      'Jira-URL'],
+    [data.ollamaBaseUrl,    'Ollama-URL'],
+    [data.copilotEndpoint,  'Azure OpenAI Endpoint'],
+    [data.openaiBaseUrl,    'OpenAI-URL']
+  ];
+  for (const [val, label] of urlFields) {
+    if (!val) continue;
+    try { new URL(val); } catch {
+      errors.push(`${label} ist ungültig (Beispiel: https://example.com)`);
+    }
+  }
+  return errors;
+}
+
 async function saveSettings() {
   const data = {};
   for (const [key, elId] of Object.entries(FIELDS)) {
@@ -116,6 +133,12 @@ async function saveSettings() {
   if (promptEl) {
     const val = promptEl.value.trim();
     data.promptSubtasksCustom = (val === DEFAULT_SUBTASKS_PROMPT.trim()) ? '' : val;
+  }
+
+  const errors = validateSettings(data);
+  if (errors.length) {
+    showStatus('⚠️ ' + errors.join(' · '), 'error');
+    return;
   }
 
   await chrome.storage.sync.set(data);
