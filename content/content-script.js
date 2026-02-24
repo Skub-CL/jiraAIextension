@@ -53,14 +53,23 @@
     if (currentInjector) currentInjector.cleanup();
     currentInjector = new Injector(issueKey, settings);
 
-    // Inject immediately and retry a few times for slow Jira renders
+    // Quick retries for initial slow Jira renders (0s, 0.8s, 1.6s, 2.5s, 4s)
     currentInjector.inject();
-    let attempts = 0;
-    const retryInterval = setInterval(() => {
-      attempts++;
-      currentInjector.inject(); // idempotent
-      if (attempts >= 5) clearInterval(retryInterval);
-    }, 1000);
+    [800, 1600, 2500, 4000].forEach(delay => {
+      setTimeout(() => { if (currentInjector) currentInjector.inject(); }, delay);
+    });
+
+    // Persistent re-injection every 3s to handle:
+    //   - Activity section loaded via AJAX
+    //   - Jira tab switches (All / Comments / History) that replace the DOM
+    //   - Any other late-rendering panels
+    const persistInterval = setInterval(() => {
+      if (!currentInjector || extractIssueKey(location.href) !== issueKey) {
+        clearInterval(persistInterval);
+        return;
+      }
+      currentInjector.inject(); // idempotent – only injects what's still missing
+    }, 3000);
   }
 
   /**

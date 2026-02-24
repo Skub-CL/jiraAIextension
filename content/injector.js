@@ -50,7 +50,8 @@ window.JiraLLM.Injector = class Injector {
   _injectSummary() {
     // Jira Data Center: issue title is in #summary-val or h1[data-field-id="summary"]
     const anchor = document.querySelector('#summary-val, h1[data-field-id="summary"], .issue-header-content');
-    if (!anchor || document.getElementById('jlla-trigger-summary')) return;
+    if (!anchor || document.getElementById('jlla-trigger-summary')
+        || document.getElementById(`jlla-summary-${this.issueKey}`)) return;
 
     const btn = this._makeButton('jlla-trigger-summary', 'KI-Zusammenfassung anzeigen');
     btn.addEventListener('click', () => {
@@ -67,11 +68,19 @@ window.JiraLLM.Injector = class Injector {
     const fieldId = this.settings.acceptanceCriteriaFieldId;
     if (!fieldId) return;
 
-    // Try data-field-id attribute first, then by known custom field patterns
-    const anchor = document.querySelector(
-      `[data-field-id="${fieldId}"], #${fieldId}-val, #${fieldId}`
-    );
-    if (!anchor || document.getElementById('jlla-trigger-acceptance')) return;
+    // Jira DC renders custom fields in many different ways depending on version/config
+    const anchor = document.querySelector([
+      `[data-field-id="${fieldId}"]`,
+      `#${fieldId}-val`,
+      `#${fieldId}`,
+      `[id="${fieldId}-field"]`,
+      `[data-field-id="${fieldId}"] .value`,
+      `td[data-field-id="${fieldId}"]`,
+      `.customfield_${fieldId}`
+    ].join(', ')) || this._findByLabelText(['akzeptanzkriterien', 'acceptance criteria', 'abnahmekriterien']);
+
+    if (!anchor || document.getElementById('jlla-trigger-acceptance')
+        || document.getElementById(`jlla-acceptance-${this.issueKey}`)) return;
 
     const btn = this._makeButton('jlla-trigger-acceptance', 'Akzeptanzkriterien bewerten');
     btn.addEventListener('click', () => {
@@ -81,9 +90,9 @@ window.JiraLLM.Injector = class Injector {
       block.attach(anchor, 'afterend');
     });
 
-    // Try to find the section heading to place the button there
-    const heading = anchor.closest('.module, .field-group')
-      ?.querySelector('h3, .mod-header, legend');
+    // Try to find the section heading to place the button inline
+    const heading = anchor.closest('.module, .field-group, .row, tr')
+      ?.querySelector('h3, .mod-header, legend, label, th, .field-label');
     if (heading) {
       heading.style.position = 'relative';
       heading.insertAdjacentElement('beforeend', btn);
@@ -94,11 +103,21 @@ window.JiraLLM.Injector = class Injector {
   }
 
   _injectSubtasks() {
-    // Jira DC: #subtasks-section or .issuePanelContainer containing "subtasks"
-    const anchor = document.querySelector(
-      '#subtasks-section, [data-panel-id="subtasks"], .issuePanelContainer.subtasks-panel'
-    );
-    if (!anchor || document.getElementById('jlla-trigger-subtasks')) return;
+    // Jira DC has many DOM structures for the subtasks panel across versions
+    const anchor = document.querySelector([
+      '#subtasks-section',
+      '#subtasks',
+      '[data-panel-id="subtasks"]',
+      '.issuePanelContainer.subtasks-panel',
+      '.sub-tasks-panel',
+      '[data-field-id="subtasks"]',
+      '.subtask-section',
+      '#subtasks-table',
+      '.subTaskTable'
+    ].join(', ')) || this._findPanelByHeading(['unteraufgaben', 'sub-task', 'subtask', 'sub-tasks']);
+
+    if (!anchor || document.getElementById('jlla-trigger-subtasks')
+        || document.getElementById(`jlla-subtasks-${this.issueKey}`)) return;
 
     const btn = this._makeButton('jlla-trigger-subtasks', 'Unteraufgaben vorschlagen');
     btn.addEventListener('click', () => {
@@ -121,11 +140,19 @@ window.JiraLLM.Injector = class Injector {
   }
 
   _injectComments() {
-    // Jira DC: #activity-stream, .activity-section, #issue-tabs
-    const anchor = document.querySelector(
-      '#activity-stream, .activity-section, #issue-tabs, [data-panel-id="activity"]'
-    );
-    if (!anchor || document.getElementById('jlla-trigger-comments')) return;
+    const anchor = document.querySelector([
+      '#activity-stream',
+      '.activity-section',
+      '#issue-tabs',
+      '[data-panel-id="activity"]',
+      '#comment-tabpanel',
+      '.activity-container',
+      '#activitymodule',
+      '[data-module-key="com.atlassian.jira.jira-view-issue-plugin:activitymodule"]'
+    ].join(', ')) || this._findPanelByHeading(['aktivität', 'activity', 'kommentare', 'comments']);
+
+    if (!anchor || document.getElementById('jlla-trigger-comments')
+        || document.getElementById(`jlla-comments-${this.issueKey}`)) return;
 
     const btn = this._makeButton('jlla-trigger-comments', 'Kommentare analysieren');
     btn.addEventListener('click', () => {
@@ -145,7 +172,7 @@ window.JiraLLM.Injector = class Injector {
     this._buttons.push(btn);
   }
 
-  // ── Helper ────────────────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────────
   _makeButton(id, title) {
     const btn = document.createElement('button');
     btn.id = id;
@@ -153,5 +180,40 @@ window.JiraLLM.Injector = class Injector {
     btn.title = title;
     btn.textContent = '🤖';
     return btn;
+  }
+
+  /**
+   * Find a field element whose label text matches one of the given keywords (case-insensitive).
+   * Useful for custom fields where the data-field-id selector doesn't match.
+   */
+  _findByLabelText(keywords) {
+    const labels = document.querySelectorAll('label, th, .field-label, .fieldLabelArea, legend');
+    for (const label of labels) {
+      const text = label.textContent.toLowerCase().trim();
+      if (keywords.some(kw => text.includes(kw))) {
+        // Return the associated value element or the parent container
+        const forId = label.getAttribute('for');
+        if (forId) {
+          const target = document.getElementById(forId) || document.getElementById(`${forId}-val`);
+          if (target) return target;
+        }
+        return label.closest('.field-group, .module, tr, .row') || label.nextElementSibling || label.parentElement;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find a panel/module whose heading text matches one of the given keywords.
+   */
+  _findPanelByHeading(keywords) {
+    const headings = document.querySelectorAll('h3, h4, .mod-header, .panel-heading, .subpanel-title, legend');
+    for (const h of headings) {
+      const text = h.textContent.toLowerCase().trim();
+      if (keywords.some(kw => text.includes(kw))) {
+        return h.closest('.module, .panel, .issuePanelContainer, section, [class*="panel"]') || h.parentElement;
+      }
+    }
+    return null;
   }
 };

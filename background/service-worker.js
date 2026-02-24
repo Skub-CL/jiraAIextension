@@ -117,9 +117,19 @@ async function analyzeIssue({ feature, issueKey, customPrompt }) {
   }
 
   const prompt = fillTemplate(template, vars);
-  const result = await LLMClient.complete(feature, prompt, settings);
+  const raw = await LLMClient.complete(feature, prompt, settings);
 
-  return { result };
+  return { result: stripThinkingBlocks(raw) };
+}
+
+// ── Strip reasoning/thinking blocks from LLM output ──────────────────────────
+// Handles: <think>, <thinking>, <reasoning> – used by DeepSeek-R1, QwQ, etc.
+function stripThinkingBlocks(text) {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+    .trim();
 }
 
 // ── Create subtask ────────────────────────────────────────────────────────────
