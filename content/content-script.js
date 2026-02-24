@@ -59,16 +59,14 @@
       setTimeout(() => { if (currentInjector) currentInjector.inject(); }, delay);
     });
 
-    // Persistent re-injection every 3s to handle:
-    //   - Activity section loaded via AJAX
-    //   - Jira tab switches (All / Comments / History) that replace the DOM
-    //   - Any other late-rendering panels
+    // Persistent re-injection every 3s: waits for Jira's right sidebar to finish
+    // rendering (the "Agil" module is often injected by Jira Software asynchronously).
     const persistInterval = setInterval(() => {
       if (!currentInjector || extractIssueKey(location.href) !== issueKey) {
         clearInterval(persistInterval);
         return;
       }
-      currentInjector.inject(); // idempotent – only injects what's still missing
+      currentInjector.inject(); // idempotent – panel already present → no-op
     }, 3000);
   }
 

@@ -1,18 +1,15 @@
 /**
- * Injector – finds DOM anchor points in Jira and injects 🤖 trigger buttons.
+ * Injector – places a single "KI-Assistent" panel in Jira's right sidebar
+ * (below the "Agil" module) with four labelled buttons.
  *
- * On first click of a trigger button, the corresponding block is created and
- * attached to the DOM. Subsequent clicks on the trigger do nothing (the block
- * has its own ↺ reload button).
+ * Clicking a button creates the corresponding output block at the canonical
+ * position inside the issue content area (unchanged from before):
+ *   Summary     → directly below the issue title
+ *   Acceptance  → directly below the acceptance-criteria field
+ *   Subtasks    → directly below the subtasks section
+ *   Comments    → directly above the activity / comments section
  *
- * Injection points (Jira Data Center selectors):
- *   - Title area      → Summary block
- *   - AK field        → Acceptance criteria block
- *   - Subtasks        → Subtask suggestions block
- *   - Activity area   → Comment analysis block
- *
- * The acceptanceCriteriaFieldId selector is loaded from settings so that
- * the correct custom field is targeted.
+ * inject() is idempotent and safe to call repeatedly.
  */
 window.JiraLLM = window.JiraLLM || {};
 
@@ -21,180 +18,211 @@ window.JiraLLM.Injector = class Injector {
     this.issueKey = issueKey;
     this.settings = settings;
     this._blocks = [];
-    this._buttons = [];
+    this._panel = null;
   }
 
-  /**
-   * Find all Jira anchor points and inject trigger buttons.
-   * Safe to call multiple times (idempotent – checks for existing buttons).
-   */
+  // ── Public API ────────────────────────────────────────────────────────────────
+
   inject() {
-    this._injectSummary();
-    this._injectAcceptance();
-    this._injectSubtasks();
-    this._injectComments();
+    this._injectPanel();
   }
 
-  /** Remove all injected elements (called on SPA navigation). */
   cleanup() {
     this._blocks.forEach(b => b.remove());
-    this._buttons.forEach(btn => btn.remove());
+    this._panel?.remove();
     this._blocks = [];
-    this._buttons = [];
-    // Also remove any open dialogs
+    this._panel = null;
     document.querySelectorAll('[id^="jlla-dialog-"]').forEach(el => el.remove());
   }
 
-  // ── Individual injection points ──────────────────────────────────────────────
+  // ── Side panel ────────────────────────────────────────────────────────────────
 
-  _injectSummary() {
-    // Jira Data Center: issue title is in #summary-val or h1[data-field-id="summary"]
-    const anchor = document.querySelector('#summary-val, h1[data-field-id="summary"], .issue-header-content');
-    if (!anchor || document.getElementById('jlla-trigger-summary')
-        || document.getElementById(`jlla-summary-${this.issueKey}`)) return;
+  _injectPanel() {
+    if (document.getElementById('jlla-panel')) return;
 
-    const btn = this._makeButton('jlla-trigger-summary', 'KI-Zusammenfassung anzeigen');
-    btn.addEventListener('click', () => {
-      btn.remove();
-      const block = new window.JiraLLM.BlockSummary(this.issueKey);
-      this._blocks.push(block);
-      block.attach(anchor, 'afterend');
-    });
-    anchor.insertAdjacentElement('afterend', btn);
-    this._buttons.push(btn);
+    const insertAfter = this._findAgilModule()
+      || this._findPanelByHeading(['details', 'details'])
+      || document.querySelector('#details-module, .details-module, #people-module');
+
+    if (!insertAfter) return;
+
+    const fieldId = this._normaliseFieldId(this.settings.acceptanceCriteriaFieldId || '');
+
+    const panel = document.createElement('div');
+    panel.id = 'jlla-panel';
+    panel.className = 'module toggle-wrap jira-llm-side-panel';
+    panel.innerHTML = `
+      <div class="mod-header">
+        <h3 class="toggle-title jira-llm-panel-title">🤖 KI-Assistent</h3>
+      </div>
+      <div class="mod-content jira-llm-panel-body">
+        <button class="jira-llm-side-btn" id="jlla-btn-summary"
+                title="Kompakte Zusammenfassung des Vorgangs erstellen">
+          <span class="jira-llm-side-btn-icon">📝</span>
+          <span class="jira-llm-side-btn-label">Zusammenfassung</span>
+        </button>
+        ${fieldId ? `
+        <button class="jira-llm-side-btn" id="jlla-btn-acceptance"
+                title="Akzeptanzkriterien nach Vollständigkeit, Testbarkeit und Eindeutigkeit bewerten">
+          <span class="jira-llm-side-btn-icon">✅</span>
+          <span class="jira-llm-side-btn-label">Akzeptanzkriterien&nbsp;bewerten</span>
+        </button>` : ''}
+        <button class="jira-llm-side-btn" id="jlla-btn-subtasks"
+                title="Konkrete Unteraufgaben vom LLM vorschlagen lassen und direkt anlegen">
+          <span class="jira-llm-side-btn-icon">📋</span>
+          <span class="jira-llm-side-btn-label">Unteraufgaben&nbsp;vorschlagen</span>
+        </button>
+        <button class="jira-llm-side-btn" id="jlla-btn-comments"
+                title="Offene Fragen, Entscheidungen, Risiken und Aktionspunkte aus Kommentaren extrahieren">
+          <span class="jira-llm-side-btn-icon">💬</span>
+          <span class="jira-llm-side-btn-label">Kommentare&nbsp;analysieren</span>
+        </button>
+      </div>`;
+
+    insertAfter.insertAdjacentElement('afterend', panel);
+    this._panel = panel;
+    this._bindPanelButtons(panel);
   }
 
-  _injectAcceptance() {
-    const rawId = this.settings.acceptanceCriteriaFieldId;
-    if (!rawId) return;
-
-    // Normalise: user may enter "10112" or "customfield_10112" – both must work
-    const fieldId = /^\d+$/.test(rawId.trim()) ? `customfield_${rawId.trim()}` : rawId.trim();
-
-    // Use [id="..."] attribute selectors instead of #id notation to avoid
-    // invalid CSS selectors when the id starts with a digit.
-    const anchor = document.querySelector([
-      `[data-field-id="${fieldId}"]`,
-      `[id="${fieldId}-val"]`,
-      `[id="${fieldId}"]`,
-      `[id="${fieldId}-field"]`,
-      `td[data-field-id="${fieldId}"]`,
-      `[class~="${fieldId}"]`
-    ].join(', ')) || this._findByLabelText(['akzeptanzkriterien', 'acceptance criteria', 'abnahmekriterien']);
-
-    if (!anchor || document.getElementById('jlla-trigger-acceptance')
-        || document.getElementById(`jlla-acceptance-${this.issueKey}`)) return;
-
-    const btn = this._makeButton('jlla-trigger-acceptance', 'Akzeptanzkriterien bewerten');
-    btn.addEventListener('click', () => {
-      btn.remove();
-      const block = new window.JiraLLM.BlockAcceptance(this.issueKey);
-      this._blocks.push(block);
-      block.attach(anchor, 'afterend');
-    });
-
-    // Try to find the section heading to place the button inline
-    const heading = anchor.closest('.module, .field-group, .row, tr')
-      ?.querySelector('h3, .mod-header, legend, label, th, .field-label');
-    if (heading) {
-      heading.style.position = 'relative';
-      heading.insertAdjacentElement('beforeend', btn);
-    } else {
-      anchor.insertAdjacentElement('beforebegin', btn);
-    }
-    this._buttons.push(btn);
+  _bindPanelButtons(panel) {
+    panel.querySelector('#jlla-btn-summary')
+      ?.addEventListener('click', () => this._activateSummary());
+    panel.querySelector('#jlla-btn-acceptance')
+      ?.addEventListener('click', () => this._activateAcceptance());
+    panel.querySelector('#jlla-btn-subtasks')
+      ?.addEventListener('click', () => this._activateSubtasks());
+    panel.querySelector('#jlla-btn-comments')
+      ?.addEventListener('click', () => this._activateComments());
   }
 
-  _injectSubtasks() {
-    // Jira DC has many DOM structures for the subtasks panel across versions
+  // ── Block activators (find anchor → attach block at content position) ─────────
+
+  _activateSummary() {
+    if (document.getElementById(`jlla-summary-${this.issueKey}`)) return;
+    const anchor = document.querySelector(
+      '#summary-val, h1[data-field-id="summary"], .issue-header-content'
+    );
+    if (!anchor) { this._panelError('summary', 'Issue-Titel nicht im DOM gefunden.'); return; }
+
+    this._markBtnActive('jlla-btn-summary');
+    const block = new window.JiraLLM.BlockSummary(this.issueKey);
+    this._blocks.push(block);
+    block.attach(anchor, 'afterend');
+  }
+
+  _activateAcceptance() {
+    if (document.getElementById(`jlla-acceptance-${this.issueKey}`)) return;
+    const fieldId = this._normaliseFieldId(this.settings.acceptanceCriteriaFieldId || '');
+    const anchor = fieldId
+      ? (document.querySelector([
+          `[data-field-id="${fieldId}"]`,
+          `[id="${fieldId}-val"]`,
+          `[id="${fieldId}"]`,
+          `[id="${fieldId}-field"]`,
+          `td[data-field-id="${fieldId}"]`,
+          `[class~="${fieldId}"]`
+        ].join(', ')) || this._findByLabelText(['akzeptanzkriterien', 'acceptance criteria', 'abnahmekriterien']))
+      : this._findByLabelText(['akzeptanzkriterien', 'acceptance criteria', 'abnahmekriterien']);
+
+    if (!anchor) { this._panelError('acceptance', 'Akzeptanzkriterien-Feld nicht gefunden.'); return; }
+
+    this._markBtnActive('jlla-btn-acceptance');
+    const block = new window.JiraLLM.BlockAcceptance(this.issueKey);
+    this._blocks.push(block);
+    block.attach(anchor, 'afterend');
+  }
+
+  _activateSubtasks() {
+    if (document.getElementById(`jlla-subtasks-${this.issueKey}`)) return;
     const anchor = document.querySelector([
-      '#subtasks-section',
-      '#subtasks',
+      '#subtasks-section', '#subtasks',
       '[data-panel-id="subtasks"]',
       '.issuePanelContainer.subtasks-panel',
       '.sub-tasks-panel',
       '[data-field-id="subtasks"]',
-      '.subtask-section',
-      '#subtasks-table',
-      '.subTaskTable'
+      '.subtask-section', '#subtasks-table', '.subTaskTable'
     ].join(', ')) || this._findPanelByHeading(['unteraufgaben', 'sub-task', 'subtask', 'sub-tasks']);
 
-    if (!anchor || document.getElementById('jlla-trigger-subtasks')
-        || document.getElementById(`jlla-subtasks-${this.issueKey}`)) return;
+    if (!anchor) { this._panelError('subtasks', 'Unteraufgaben-Sektion nicht gefunden.'); return; }
 
-    const btn = this._makeButton('jlla-trigger-subtasks', 'Unteraufgaben vorschlagen');
-    btn.addEventListener('click', () => {
-      btn.remove();
-      const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
-      this._blocks.push(block);
-      block.attach(anchor, 'afterend');
-      // For subtasks, immediately open dialog
-      block._openDialog();
-    });
-
-    const heading = anchor.querySelector('h3, .mod-header, .panel-heading');
-    if (heading) {
-      heading.style.position = 'relative';
-      heading.insertAdjacentElement('beforeend', btn);
-    } else {
-      anchor.insertAdjacentElement('beforebegin', btn);
-    }
-    this._buttons.push(btn);
+    this._markBtnActive('jlla-btn-subtasks');
+    const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
+    this._blocks.push(block);
+    block.attach(anchor, 'afterend');
+    block._openDialog();
   }
 
-  _injectComments() {
+  _activateComments() {
+    if (document.getElementById(`jlla-comments-${this.issueKey}`)) return;
     const anchor = document.querySelector([
-      '#activity-stream',
-      '.activity-section',
-      '#issue-tabs',
-      '[data-panel-id="activity"]',
-      '#comment-tabpanel',
-      '.activity-container',
+      '#activity-stream', '.activity-section',
+      '#issue-tabs', '[data-panel-id="activity"]',
+      '#comment-tabpanel', '.activity-container',
       '#activitymodule',
       '[data-module-key="com.atlassian.jira.jira-view-issue-plugin:activitymodule"]'
     ].join(', ')) || this._findPanelByHeading(['aktivität', 'activity', 'kommentare', 'comments']);
 
-    if (!anchor || document.getElementById('jlla-trigger-comments')
-        || document.getElementById(`jlla-comments-${this.issueKey}`)) return;
+    if (!anchor) { this._panelError('comments', 'Aktivitäts-Sektion nicht gefunden.'); return; }
 
-    const btn = this._makeButton('jlla-trigger-comments', 'Kommentare analysieren');
-    btn.addEventListener('click', () => {
-      btn.remove();
-      const block = new window.JiraLLM.BlockComments(this.issueKey);
-      this._blocks.push(block);
-      block.attach(anchor, 'beforebegin');
-    });
-
-    const heading = anchor.querySelector('h3, .mod-header, .panel-heading');
-    if (heading) {
-      heading.style.position = 'relative';
-      heading.insertAdjacentElement('beforeend', btn);
-    } else {
-      anchor.insertAdjacentElement('beforebegin', btn);
-    }
-    this._buttons.push(btn);
+    this._markBtnActive('jlla-btn-comments');
+    const block = new window.JiraLLM.BlockComments(this.issueKey);
+    this._blocks.push(block);
+    block.attach(anchor, 'beforebegin');
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────────
-  _makeButton(id, title) {
-    const btn = document.createElement('button');
-    btn.id = id;
-    btn.className = 'jira-llm-trigger-btn';
-    btn.title = title;
-    btn.textContent = '🤖';
-    return btn;
+  // ── Panel helpers ─────────────────────────────────────────────────────────────
+
+  /** Mark a button as active (already triggered) and disable it. */
+  _markBtnActive(btnId) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.classList.add('jira-llm-side-btn-active');
+    btn.disabled = true;
+    // Re-enable if block is later removed (e.g. on issue key change handled by cleanup)
   }
 
-  /**
-   * Find a field element whose label text matches one of the given keywords (case-insensitive).
-   * Useful for custom fields where the data-field-id selector doesn't match.
-   */
+  /** Show a temporary error message below the relevant button in the panel. */
+  _panelError(feature, message) {
+    const body = this._panel?.querySelector('.jira-llm-panel-body');
+    if (!body) return;
+    const existing = body.querySelector('.jira-llm-panel-error');
+    if (existing) existing.remove();
+    const err = document.createElement('div');
+    err.className = 'jira-llm-panel-error';
+    err.textContent = `⚠️ ${message}`;
+    body.appendChild(err);
+    setTimeout(() => err.remove(), 6000);
+  }
+
+  // ── Right-column "Agil" module detection ─────────────────────────────────────
+
+  _findAgilModule() {
+    // Common module keys for the Agile fields module in Jira DC / Jira Software
+    const byKey = document.querySelector([
+      '#greenhopper-agile-fields-module',
+      '[data-module-key*="agile-issue-tracking"]',
+      '[data-module-key*="greenhopper"]',
+      '[id*="agile-fields"]',
+      '[id*="greenhopper"]'
+    ].join(', '));
+    if (byKey) return byKey;
+
+    // Fallback: find module whose heading says "Agil" or "Agile"
+    return this._findPanelByHeading(['agil', 'agile']);
+  }
+
+  // ── Generic DOM helpers ───────────────────────────────────────────────────────
+
+  _normaliseFieldId(rawId) {
+    if (!rawId) return '';
+    return /^\d+$/.test(rawId.trim()) ? `customfield_${rawId.trim()}` : rawId.trim();
+  }
+
   _findByLabelText(keywords) {
     const labels = document.querySelectorAll('label, th, .field-label, .fieldLabelArea, legend');
     for (const label of labels) {
       const text = label.textContent.toLowerCase().trim();
       if (keywords.some(kw => text.includes(kw))) {
-        // Return the associated value element or the parent container
         const forId = label.getAttribute('for');
         if (forId) {
           const target = document.getElementById(forId) || document.getElementById(`${forId}-val`);
@@ -206,15 +234,15 @@ window.JiraLLM.Injector = class Injector {
     return null;
   }
 
-  /**
-   * Find a panel/module whose heading text matches one of the given keywords.
-   */
   _findPanelByHeading(keywords) {
-    const headings = document.querySelectorAll('h3, h4, .mod-header, .panel-heading, .subpanel-title, legend');
+    const headings = document.querySelectorAll(
+      'h3, h4, .mod-header, .panel-heading, .subpanel-title, legend, .toggle-title'
+    );
     for (const h of headings) {
       const text = h.textContent.toLowerCase().trim();
       if (keywords.some(kw => text.includes(kw))) {
-        return h.closest('.module, .panel, .issuePanelContainer, section, [class*="panel"]') || h.parentElement;
+        return h.closest('.module, .panel, .issuePanelContainer, section, [class*="panel"]')
+          || h.parentElement;
       }
     }
     return null;
