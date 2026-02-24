@@ -197,15 +197,15 @@ window.JiraLLM.Injector = class Injector {
   // ── Right-column "Agil" module detection ─────────────────────────────────────
 
   _findAgilModule() {
-    // Common module keys for the Agile fields module in Jira DC / Jira Software
-    const byKey = document.querySelector([
+    const byId = document.querySelector([
+      '#greenhopper-agile-issue-web-panel',   // confirmed Jira DC selector
       '#greenhopper-agile-fields-module',
+      '[id*="greenhopper-agile"]',
       '[data-module-key*="agile-issue-tracking"]',
       '[data-module-key*="greenhopper"]',
-      '[id*="agile-fields"]',
-      '[id*="greenhopper"]'
+      '[id*="agile-fields"]'
     ].join(', '));
-    if (byKey) return byKey;
+    if (byId) return byId;
 
     // Fallback: find module whose heading says "Agil" or "Agile"
     return this._findPanelByHeading(['agil', 'agile']);
