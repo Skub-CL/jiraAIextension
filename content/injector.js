@@ -134,21 +134,53 @@ window.JiraLLM.Injector = class Injector {
 
   _activateSubtasks() {
     if (document.getElementById(`jlla-subtasks-${this.issueKey}`)) return;
-    const anchor = document.querySelector([
+
+    // Primary: existing subtasks section (only present in DOM when ≥1 subtask exists)
+    const primaryAnchor = document.querySelector([
       '#subtasks-section', '#subtasks',
       '[data-panel-id="subtasks"]',
       '.issuePanelContainer.subtasks-panel',
       '.sub-tasks-panel',
       '[data-field-id="subtasks"]',
       '.subtask-section', '#subtasks-table', '.subTaskTable'
-    ].join(', ')) || this._findPanelByHeading(['unteraufgaben', 'sub-task', 'subtask', 'sub-tasks']);
+    ].join(', '))
+      || this._findPanelByHeading(['unteraufgaben', 'sub-task', 'subtask', 'sub-tasks']);
 
-    if (!anchor) { this._panelError('subtasks', 'Unteraufgaben-Sektion nicht gefunden.'); return; }
+    if (primaryAnchor) {
+      this._markBtnActive('jlla-btn-subtasks');
+      const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
+      this._blocks.push(block);
+      block.attach(primaryAnchor, 'afterend');
+      return;
+    }
 
-    this._markBtnActive('jlla-btn-subtasks');
-    const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
-    this._blocks.push(block);
-    block.attach(anchor, 'afterend');
+    // Fallback A: attach after the description module (where Jira would show subtasks anyway)
+    const descAnchor = document.querySelector([
+      '#descriptionmodule', '#description-module', '.description-module',
+      '#description-val', '[data-module-key*="description"]'
+    ].join(', '));
+    if (descAnchor) {
+      this._markBtnActive('jlla-btn-subtasks');
+      const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
+      this._blocks.push(block);
+      block.attach(descAnchor, 'afterend');
+      return;
+    }
+
+    // Fallback B: insert before the activity / comments section
+    const activityAnchor = document.querySelector([
+      '#activitymodule', '#activity-stream', '.activity-section',
+      '[data-module-key*="activitymodule"]'
+    ].join(', '));
+    if (activityAnchor) {
+      this._markBtnActive('jlla-btn-subtasks');
+      const block = new window.JiraLLM.BlockSubtasks(this.issueKey);
+      this._blocks.push(block);
+      block.attach(activityAnchor, 'beforebegin');
+      return;
+    }
+
+    this._panelError('subtasks', 'Kein geeigneter Anker für Unteraufgaben-Block gefunden.');
   }
 
   _activateComments() {
