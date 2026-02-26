@@ -12,7 +12,11 @@ export class JiraAPI {
     return {
       'Authorization': `Bearer ${this.token}`,
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      // Required by Jira's Seraph XSRF filter for cross-origin REST API calls.
+      // Without this header Jira re-evaluates the session on every request,
+      // which invalidates the browser session and logs the user out.
+      'X-Atlassian-Token': 'no-check'
     };
   }
 
@@ -68,6 +72,10 @@ export class JiraAPI {
       const response = await fetch(url, {
         ...options,
         headers: { ...this.headers, ...(options.headers || {}) },
+        // Explicitly omit cookies: we authenticate via Bearer token (PAT) only.
+        // Sending session cookies alongside a PAT causes Jira to re-authenticate
+        // and invalidate the existing browser session, logging the user out.
+        credentials: 'omit',
         signal: controller.signal
       });
       if (!response.ok) {

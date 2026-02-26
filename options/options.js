@@ -201,7 +201,12 @@ async function testJira() {
   setTestResult(resultEl, null, 'Teste…');
   try {
     const resp = await fetch(`${url}/rest/api/2/myself`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'X-Atlassian-Token': 'no-check'
+      },
+      credentials: 'omit'
     });
     if (resp.ok) {
       const data = await resp.json();
